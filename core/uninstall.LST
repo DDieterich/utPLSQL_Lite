@@ -1,0 +1,6 @@
+Dropping user UTC, Press Enter to Continue
+
+
+User dropped.
+
+Run @code/drop_public.sql to remove public synonyms

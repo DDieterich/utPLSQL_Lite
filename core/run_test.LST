@@ -1,0 +1,114 @@
+Ran setup
+Ran teardown
+.
+>  FFFFFFF   AA     III  L      U     U RRRRR   EEEEEEE
+>  F        A  A     I   L      U     U R    R  E
+>  F       A    A    I   L      U     U R     R E
+>  F      A      A   I   L      U     U R     R E
+>  FFFF   A      A   I   L      U     U RRRRRR  EEEE
+>  F      AAAAAAAA   I   L      U     U R   R   E
+>  F      A      A   I   L      U     U R    R  E
+>  F      A      A   I   L       U   U  R     R E
+>  F      A      A  III  LLLLLLL  UUU   R     R EEEEEEE
+.
+FAILURE: "UT_BETWNSTR"
+.
+> 1 Failures and 1 Errors
+>
+> Individual Test Case Results:
+>
+SUCCESS - UT_BETWNSTR.UT_BETWNSTR: EQ "normal" Expected "cde" and got "cde"
+>
+FAILURE - UT_BETWNSTR.UT_BETWNSTR: EQ "zero start" Expected "ab" and got "abc"
+>
+SUCCESS - UT_BETWNSTR.UT_BETWNSTR: ISNULL "null start" Expected "" and got ""
+>
+SUCCESS - UT_BETWNSTR.UT_BETWNSTR: ISNULL "null end" Expected "" and got ""
+>
+>
+> Errors recorded:
+>
+Test Case UT_THROW_ERROR Errors: ORA-01476: divisor is equal to zero
+ORA-06512:
+at "UTC.UT_BETWNSTR", line 133
+ORA-06512: at line 1
+ORA-06512: at "UTC.UTPLSQL",
+line 228
+
+>
+>  100.00% code coverage Profiling FUNCTION UTC.BETWNSTR
+
+PL/SQL procedure successfully completed.
+
+
+UTC_TESTSUITE:
+==============
+
+TESTSUITE_NAME TESTSUITE_OWNER STATUS   RUNID ERRORS
+-------------- --------------- -------- ----- ----------------------------------
+UT_BETWNSTR    UTC             FAILURE      1
+
+
+UTC_TESTCASE:
+=============
+
+TESTSUITE_NAME TESTCASE_NAME   STATUS   ERRORS
+-------------- --------------- -------- ----------------------------------
+UT_BETWNSTR    UTPLSQL_INIT    SUCCESS
+UT_BETWNSTR    UT_SETUP        SUCCESS
+UT_BETWNSTR    UT_BETWNSTR     FAILURE
+UT_BETWNSTR    UT_THROW_ERROR  FAILURE  ORA-01476: divisor is equal to zer
+UT_BETWNSTR    UT_TEARDOWN     SUCCESS
+
+
+UTC_OUTCOME:
+============
+
+TESTSUITE_NAME TESTCASE_NAME     SEQ STATUS   MESSAGE
+-------------- --------------- ----- -------- ----------------------------------
+NAME   ASSERT_DETAILS                         ERRORS
+------ -------------------------------------- ----------------------------------
+UT_BETWNSTR    UT_BETWNSTR         1 SUCCESS  normal
+EQ     Expected "cde" and got "cde"
+
+UT_BETWNSTR    UT_BETWNSTR         2 FAILURE  zero start
+EQ     Expected "ab" and got "abc"
+
+UT_BETWNSTR    UT_BETWNSTR         3 SUCCESS  null start
+ISNULL Expected "" and got ""
+
+
+TESTSUITE_NAME TESTCASE_NAME     SEQ STATUS   MESSAGE
+-------------- --------------- ----- -------- ----------------------------------
+NAME   ASSERT_DETAILS                         ERRORS
+------ -------------------------------------- ----------------------------------
+UT_BETWNSTR    UT_BETWNSTR         4 SUCCESS  null end
+ISNULL Expected "" and got ""
+
+
+
+PLSQL_PROFILER_RUNS:
+====================
+
+RUNID RUN_COMMENT                          RUN_COMMENT1
+----- ------------------------------------ ------------------------------------
+    1 utPLSQL Profiling from UTC.UT_BETWNS Profiling FUNCTION UTC.BETWNSTR
+
+
+PLSQL_PROFILER_UNITS:
+=====================
+
+RUNID UNIT# UNIT_TYPE              UNIT_OWNER             UNIT_NAME
+----- ----- ---------------------- ---------------------- ----------------------
+    1     6 FUNCTION               UTC                    BETWNSTR
+
+
+PLSQL_PROFILER_DATA:
+====================
+
+RUNID UNIT# LINE# OCCUR  TOTAL_TIME    MIN_TIME    MAX_TIME
+----- ----- ----- ----- ----------- ----------- -----------
+    1     6     1     0        7960         995        2985
+    1     6     9     4       19901         995        9950
+    1     6    16     4        2985           0         995
+
