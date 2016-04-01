@@ -28,20 +28,27 @@ Converted to v3
 
 ************************************************************************/
 
+   subtype testcase_type is varchar2(15);
+
    -- Private Constants
-   LF               CONSTANT varchar2(1) := CHR(10);
-   c_init_proc      CONSTANT varchar2(30) := 'UTPLSQL_INIT';
-   c_final_proc     CONSTANT varchar2(30) := 'UTPLSQL_FINAL';
-   c_setup          CONSTANT CHAR (5)     := 'SETUP';
-   c_teardown       CONSTANT CHAR (8)     := 'TEARDOWN';
+   LF               CONSTANT varchar2(1)  := CHR(10);
+   c_init_proc      CONSTANT testcase_type := 'UTPLSQL_INIT';
+   c_final_proc     CONSTANT testcase_type := 'UTPLSQL_FINAL';
+   c_setup          CONSTANT testcase_type := 'SETUP';
+   c_teardown       CONSTANT testcase_type := 'TEARDOWN';
+   c_runit          CONSTANT testcase_type := 'RUNIT';
+   c_skipit         CONSTANT testcase_type := 'SKIPIT';
 
    -- Current Test Suite Record
    g_testsuite_rec  utc_testsuite%ROWTYPE;
 
-   -- Current Test Case Record and nested table of Names
+   -- Current Test Case Record and nested table of Names/Types
    g_testcase_rec   utc_testcase%ROWTYPE;
-   TYPE g_testcase_names_nt_type is table of all_arguments.object_name%TYPE;
-   g_testcase_names_nt   g_testcase_names_nt_type;
+   TYPE tc_nt_rec_type is record
+      (name   all_arguments.object_name%TYPE
+      ,type   testcase_type);
+   TYPE tc_nt_type is table of tc_nt_rec_type;
+   g_tc_nt    tc_nt_type;
 
    -- Private Globals
    g_halt_on_exception  boolean := FALSE;
@@ -193,18 +200,44 @@ end save_testcase;
 ------------------------------------------------------------
 --
 PROCEDURE load_testcase_names
+      (proc_prefix_in       IN  VARCHAR2 default '')
 IS
 BEGIN
    -- If no rows are selected, g_testcase_names_nt is initialized
    --    with zero records
-   SELECT object_name
-    BULK COLLECT INTO g_testcase_names_nt
+   SELECT object_name      name
+         ,null             type
+    BULK COLLECT INTO g_tc_nt
     FROM  all_arguments
     WHERE owner         = g_testsuite_rec.testsuite_owner
      AND  package_name  = g_testsuite_rec.testsuite_name
      AND  position      = 1
      AND  argument_name is null
     ORDER BY object_name;
+   for i in 1 .. g_tc_nt.COUNT
+   loop
+      case
+      when upper(g_tc_nt(i).name) = c_init_proc
+      then
+           g_tc_nt(i).type := c_init_proc;
+      when upper(g_tc_nt(i).name) = c_final_proc
+      then
+           g_tc_nt(i).type := c_final_proc;
+      when proc_prefix_in is not null   and
+           upper(g_tc_nt(i).name) = upper(proc_prefix_in)||c_setup
+      then
+           g_tc_nt(i).type := c_setup;
+      when proc_prefix_in is not null   and
+           upper(g_tc_nt(i).name) = upper(proc_prefix_in)||c_teardown
+      then
+           g_tc_nt(i).type := c_teardown;
+      when upper(g_tc_nt(i).name) like upper(proc_prefix_in)||'%'
+      then
+           g_tc_nt(i).type := c_runit;
+      else 
+           g_tc_nt(i).type := c_skipit;
+      end case;
+   end loop;
 END load_testcase_names;
 
 
@@ -261,14 +294,14 @@ END run_testcase;
 ------------------------------------------------------------
 --
 PROCEDURE run_pre_or_post
-      (name_in IN  VARCHAR2)
+      (tc_type_in IN  VARCHAR2)
 IS
 BEGIN
-   FOR i in 1 .. g_testcase_names_nt.COUNT
+   FOR i in 1 .. g_tc_nt.COUNT
    LOOP
-      if upper(g_testcase_names_nt(i)) = upper(name_in)
+      if g_tc_nt(i).type = tc_type_in
       then
-         run_testcase(g_testcase_names_nt(i));
+         run_testcase(g_tc_nt(i).name);
       end if;
    END LOOP;
 END run_pre_or_post;
@@ -277,17 +310,20 @@ END run_pre_or_post;
 ------------------------------------------------------------
 --
 PROCEDURE skip_testcases
-      (testcase_names_nt_indx_in  IN  INTEGER)
+      (tc_nt_indx_in  IN  INTEGER)
 IS
 BEGIN
    g_testcase_rec.testsuite_name  := g_testsuite_rec.testsuite_name;
    g_testcase_rec.testsuite_owner := g_testsuite_rec.testsuite_owner;
    g_testcase_rec.status          := utreport.c_SKIPPED;
-   FOR j in testcase_names_nt_indx_in .. g_testcase_names_nt.COUNT
+   FOR j in tc_nt_indx_in .. g_tc_nt.COUNT
    LOOP
-      g_testcase_rec.testcase_name := g_testcase_names_nt(j);
-      g_testcase_rec.start_on      := systimestamp;
-      save_testcase;
+      if g_tc_nt(j).type = c_runit
+      then
+         g_testcase_rec.testcase_name := g_tc_nt(j).name;
+         g_testcase_rec.start_on      := systimestamp;
+         save_testcase;
+      end if;
    END LOOP;
  END skip_testcases;
 
@@ -388,34 +424,28 @@ BEGIN
    -- Also clears everything related to this Test Suite
    reset_testsuite(package_name_in, package_owner_in);
    -- Find all the Test Case Names
-   load_testcase_names;
+   load_testcase_names(proc_prefix_in);
    -- Run utPLSQL_init
    run_pre_or_post(c_init_proc);
    start_profiler;  -- Resets profiler and sets the profiler runid and pauses
    -- Run setup if prefix is defined
-   if proc_prefix_in is not null AND 
-      not per_method_setup_in
+   if not per_method_setup_in
    then
-      run_pre_or_post(proc_prefix_in||c_setup);
+      run_pre_or_post(c_setup);
    end if;
    utreport.reset_reporter;
    ------------------------------------------------------------------
    --------------------  Loop on the Test Cases  --------------------
    -- Run the test cases
-   FOR i in 1 .. g_testcase_names_nt.COUNT
+   FOR i in 1 .. g_tc_nt.COUNT
    LOOP
-      if upper(g_testcase_names_nt(i)) not in (upper(                c_init_proc)
-                                              ,upper(proc_prefix_in||c_setup)
-                                              ,upper(proc_prefix_in||c_teardown)
-                                              ,upper(                c_final_proc))
-         AND
-         upper(g_testcase_names_nt(i)) like upper(proc_prefix_in)||'%'
+      if g_tc_nt(i).type = c_runit
       then
          if per_method_setup_in
          then
-             run_pre_or_post(proc_prefix_in||c_setup);
+             run_pre_or_post(c_setup);
          end if;
-         run_testcase(g_testcase_names_nt(i));
+         run_testcase(g_tc_nt(i).name);
          if  nvl(g_testcase_rec.status, utreport.c_FAILURE) <> utreport.c_SUCCESS
          then
             if g_halt_on_exception
@@ -426,17 +456,16 @@ BEGIN
          end if;
          if per_method_setup_in
          then
-            run_pre_or_post(proc_prefix_in||c_teardown);
+            run_pre_or_post(c_teardown);
          end if;
       end if;
    END LOOP; -- i loop
    -------------------------------------------------------------------
    --------------------  Finalize the Test Suite  --------------------
    -- Run setup if prefix is defined
-   if proc_prefix_in is not null AND 
-      not per_method_setup_in
+   if not per_method_setup_in
    then
-      run_pre_or_post(proc_prefix_in||c_teardown);
+      run_pre_or_post(c_teardown);
    end if;
    -- resume_profiler;  -- Not required???
    stop_profiler;  -- Also flushes profiler data to profiler tables
