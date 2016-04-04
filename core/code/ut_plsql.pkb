@@ -294,14 +294,24 @@ END run_testcase;
 ------------------------------------------------------------
 --
 PROCEDURE run_pre_or_post
-      (tc_type_in IN  VARCHAR2)
+      (tc_type_in IN  VARCHAR2
+      ,tc_indx_in IN  NUMBER  DEFAULT NULL)
 IS
+   testcase_name   utc_testcase.testcase_name%TYPE;
 BEGIN
    FOR i in 1 .. g_tc_nt.COUNT
    LOOP
       if g_tc_nt(i).type = tc_type_in
       then
-         run_testcase(g_tc_nt(i).name);
+         testcase_name := g_tc_nt(i).name;
+         -- Setup and Teardown can be run multiple times within a Test Suite.
+         -- TC_INDX_IN is used to create unique Test Case Names.
+         if tc_indx_in is not null
+         then
+            testcase_name := testcase_name || '_' ||
+                             ltrim(to_char(tc_indx_in,'09'));
+         end if;
+         run_testcase(g_tc_nt(i).name || tc_indx_in);
       end if;
    END LOOP;
 END run_pre_or_post;
@@ -443,7 +453,8 @@ BEGIN
       then
          if per_method_setup_in
          then
-             run_pre_or_post(c_setup);
+             -- Setup is being run for each Test Case
+             run_pre_or_post(c_setup, i);
          end if;
          run_testcase(g_tc_nt(i).name);
          if  nvl(g_testcase_rec.status, utreport.c_FAILURE) <> utreport.c_SUCCESS
@@ -456,7 +467,8 @@ BEGIN
          end if;
          if per_method_setup_in
          then
-            run_pre_or_post(c_teardown);
+             -- Teardown is being run for each Test Case
+            run_pre_or_post(c_teardown, i);
          end if;
       end if;
    END LOOP; -- i loop
